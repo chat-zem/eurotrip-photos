@@ -1,0 +1,791 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Eurotrip do Marião</title>
+    <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" 
+          integrity="sha256-p4NxAoJBhIIN+hmNHrzRCf9tD/miZyoHS5obTRR9BMY=" 
+          crossorigin=""/>
+    <link rel="stylesheet" href="https://unpkg.com/swiper@11/swiper-bundle.min.css"/>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+        
+        body {
+            font-family: 'Georgia', serif;
+            height: 100vh;
+            overflow: hidden;
+            background: #e8e4dc;
+            display: flex;
+        }
+        
+        #map {
+            flex: 1;
+            height: 100vh;
+            filter: saturate(0.85) brightness(0.95);
+        }
+        
+        #loading {
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            z-index: 2000;
+            background: #4a5f7f;
+            color: #d4c5a9;
+            padding: 30px 50px;
+            border-radius: 8px;
+            border: 3px solid #c9a961;
+            box-shadow: 0 8px 30px rgba(0,0,0,0.4);
+            text-align: center;
+            font-size: 18px;
+            letter-spacing: 1px;
+        }
+        
+        .right-panel {
+            width: 380px;
+            height: 100vh;
+            background: linear-gradient(135deg, #4a5f7f 0%, #3d4f66 100%);
+            border-left: 3px solid #c9a961;
+            box-shadow: -10px 0 40px rgba(0,0,0,0.5);
+            overflow-y: auto;
+            padding: 30px 25px;
+            display: flex;
+            flex-direction: column;
+            gap: 25px;
+            transition: transform 0.3s ease;
+        }
+        
+        .right-panel::-webkit-scrollbar {
+            width: 8px;
+        }
+        
+        .right-panel::-webkit-scrollbar-track {
+            background: rgba(42, 58, 79, 0.5);
+        }
+        
+        .right-panel::-webkit-scrollbar-thumb {
+            background: #c9a961;
+            border-radius: 4px;
+        }
+        
+        .map-title {
+            font-size: 24px;
+            color: #c9a961;
+            margin: 0;
+            text-align: center;
+            font-weight: normal;
+            letter-spacing: 2px;
+            text-transform: uppercase;
+            font-family: 'Georgia', serif;
+            text-shadow: 2px 2px 4px rgba(0,0,0,0.3);
+        }
+        
+        .map-subtitle {
+            font-size: 13px;
+            color: #d4c5a9;
+            text-align: center;
+            opacity: 0.9;
+            letter-spacing: 0.5px;
+        }
+        
+        .extra-info {
+            display: flex;
+            flex-direction: column;
+            gap: 10px;
+            padding: 15px 0;
+            border-top: 2px solid rgba(201, 169, 97, 0.3);
+            border-bottom: 2px solid rgba(201, 169, 97, 0.3);
+        }
+        
+        .extra-item {
+            font-size: 13px;
+            color: #d4c5a9;
+            letter-spacing: 0.5px;
+            text-align: center;
+        }
+        
+        .countries-section {
+            display: flex;
+            flex-direction: column;
+            gap: 25px;
+        }
+        
+        .country-block {
+            display: flex;
+            flex-direction: column;
+            gap: 10px;
+        }
+        
+        .country-name {
+            font-size: 16px;
+            color: #c9a961;
+            font-weight: bold;
+            letter-spacing: 1.5px;
+            border-bottom: 2px solid #c9a961;
+            padding-bottom: 8px;
+        }
+        
+        .city-list {
+            list-style: none;
+            padding: 0;
+            display: flex;
+            flex-direction: column;
+            gap: 5px;
+        }
+        
+        .city-link {
+            color: #d4c5a9;
+            text-decoration: none;
+            font-size: 14px;
+            padding: 8px 12px;
+            transition: all 0.3s ease;
+            cursor: pointer;
+            letter-spacing: 0.5px;
+            border-radius: 6px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+        
+        .city-link:hover {
+            background: rgba(201, 169, 97, 0.2);
+            color: #c9a961;
+            padding-left: 16px;
+        }
+        
+        .city-count {
+            color: #8a9bb0;
+            font-size: 12px;
+            background: rgba(42, 58, 79, 0.5);
+            padding: 2px 8px;
+            border-radius: 10px;
+        }
+        
+        .mobile-toggle {
+            display: none;
+            position: fixed;
+            bottom: 20px;
+            right: 20px;
+            z-index: 1500;
+            background: linear-gradient(135deg, #c9a961 0%, #b8975a 100%);
+            color: #2a3a4f;
+            border: 3px solid #4a5f7f;
+            border-radius: 50%;
+            width: 60px;
+            height: 60px;
+            font-size: 24px;
+            cursor: pointer;
+            box-shadow: 0 4px 20px rgba(201, 169, 97, 0.6);
+            transition: all 0.3s ease;
+            align-items: center;
+            justify-content: center;
+            font-weight: bold;
+        }
+        
+        .mobile-toggle:hover {
+            transform: scale(1.1);
+            box-shadow: 0 6px 25px rgba(201, 169, 97, 0.8);
+        }
+        
+        .mobile-toggle:active {
+            transform: scale(0.95);
+        }
+        
+        .custom-marker {
+            background: #c9a961;
+            width: 32px;
+            height: 32px;
+            border-radius: 50% 50% 50% 0;
+            transform: rotate(-45deg);
+            border: 3px solid #4a5f7f;
+            box-shadow: 0 4px 12px rgba(201, 169, 97, 0.6);
+            transition: all 0.3s ease;
+        }
+        
+        .custom-marker:hover {
+            transform: rotate(-45deg) scale(1.2);
+            box-shadow: 0 6px 20px rgba(201, 169, 97, 0.8);
+        }
+        
+        .custom-marker::after {
+            content: '';
+            width: 14px;
+            height: 14px;
+            background: #4a5f7f;
+            border-radius: 50%;
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+        }
+        
+        .multi-photo-marker {
+            background: linear-gradient(135deg, #c9a961 0%, #b8975a 100%);
+            color: #2a3a4f;
+            border-radius: 50%;
+            border: 3px solid #4a5f7f;
+            box-shadow: 0 4px 12px rgba(201, 169, 97, 0.6);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-weight: bold;
+            font-size: 15px;
+            transition: all 0.3s ease;
+            font-family: 'Georgia', serif;
+        }
+        
+        .multi-photo-marker:hover {
+            transform: scale(1.15);
+            box-shadow: 0 6px 20px rgba(201, 169, 97, 0.8);
+        }
+        
+        .leaflet-popup-content-wrapper {
+            background: linear-gradient(135deg, #4a5f7f 0%, #3d4f66 100%);
+            border: 3px solid #c9a961;
+            border-radius: 12px;
+            padding: 0;
+            box-shadow: 0 10px 40px rgba(0,0,0,0.6);
+            min-width: 400px;
+            max-width: 500px;
+        }
+        
+        .leaflet-popup-content {
+            margin: 0;
+        }
+        
+        .leaflet-popup-tip {
+            background: #3d4f66;
+            border-left: 3px solid #c9a961;
+            border-bottom: 3px solid #c9a961;
+        }
+        
+        .photo-popup {
+            text-align: center;
+        }
+        
+        .photo-popup .location-name {
+            font-size: 18px;
+            color: #c9a961;
+            font-weight: bold;
+            padding: 20px;
+            margin: 0;
+            letter-spacing: 1px;
+            border-bottom: 2px solid #c9a961;
+            background: rgba(42, 58, 79, 0.5);
+        }
+        
+        .photo-gallery {
+            position: relative;
+            padding: 15px;
+        }
+        
+        .photo-gallery .swiper {
+            width: 100%;
+            height: 100%;
+        }
+        
+        .photo-gallery .swiper-slide {
+            cursor: pointer;
+        }
+        
+        .photo-gallery img {
+            width: 100%;
+            height: 350px;
+            object-fit: cover;
+            border-radius: 8px;
+            transition: transform 0.3s ease;
+            border: 2px solid #c9a961;
+            user-select: none;
+            -webkit-user-drag: none;
+        }
+        
+        .photo-gallery img:hover {
+            transform: scale(1.02);
+        }
+        
+        .swiper-button-next,
+        .swiper-button-prev {
+            color: #c9a961 !important;
+            background: rgba(74, 95, 127, 0.9) !important;
+            width: 44px !important;
+            height: 44px !important;
+            border-radius: 50%;
+            border: 2px solid #c9a961;
+            z-index: 100;
+        }
+        
+        .swiper-button-next:after,
+        .swiper-button-prev:after {
+            font-size: 18px !important;
+            font-weight: bold;
+        }
+        
+        .swiper-button-disabled {
+            opacity: 0.3 !important;
+        }
+        
+        .swiper-pagination {
+            z-index: 100;
+            bottom: 10px !important;
+        }
+        
+        .swiper-pagination-bullet {
+            background: #d4c5a9 !important;
+            opacity: 0.5;
+            width: 10px !important;
+            height: 10px !important;
+        }
+        
+        .swiper-pagination-bullet-active {
+            background: #c9a961 !important;
+            opacity: 1;
+        }
+        
+        .lightbox {
+            display: none;
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: rgba(0, 0, 0, 0.95);
+            z-index: 10000;
+            align-items: center;
+            justify-content: center;
+        }
+        
+        .lightbox.active {
+            display: flex;
+        }
+        
+        .lightbox-content {
+            position: relative;
+            max-width: 90vw;
+            max-height: 90vh;
+            width: 100%;
+            height: 100%;
+        }
+        
+        .lightbox-swiper {
+            width: 100%;
+            height: 100%;
+        }
+        
+        .lightbox-swiper img {
+            width: 100%;
+            height: 100%;
+            object-fit: contain;
+        }
+        
+        .lightbox-close {
+            position: absolute;
+            top: 30px;
+            right: 30px;
+            color: #c9a961;
+            font-size: 40px;
+            cursor: pointer;
+            z-index: 10001;
+            background: rgba(74, 95, 127, 0.9);
+            width: 50px;
+            height: 50px;
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            border: 3px solid #c9a961;
+            transition: all 0.3s ease;
+        }
+        
+        .lightbox-close:hover {
+            transform: scale(1.1);
+            background: rgba(74, 95, 127, 1);
+        }
+        
+        .lightbox .swiper-button-next,
+        .lightbox .swiper-button-prev {
+            width: 60px !important;
+            height: 60px !important;
+        }
+        
+        .lightbox .swiper-button-next:after,
+        .lightbox .swiper-button-prev:after {
+            font-size: 30px !important;
+        }
+        
+        @media (max-width: 768px) {
+            body {
+                flex-direction: column;
+            }
+            
+            #map {
+                width: 100%;
+                height: 100vh;
+            }
+            
+            .right-panel {
+                position: fixed;
+                top: 0;
+                right: 0;
+                width: 100%;
+                height: 100vh;
+                border-left: none;
+                border-top: 3px solid #c9a961;
+                z-index: 1400;
+                transform: translateX(100%);
+            }
+            
+            .right-panel.active {
+                transform: translateX(0);
+            }
+            
+            .mobile-toggle {
+                display: flex;
+            }
+            
+            .mobile-toggle.active {
+                background: linear-gradient(135deg, #4a5f7f 0%, #3d4f66 100%);
+                color: #c9a961;
+            }
+            
+            .leaflet-popup-content-wrapper {
+                min-width: 300px;
+                max-width: 350px;
+            }
+            
+            .photo-gallery img {
+                height: 250px;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div id="loading">Carregando sua aventura...</div>
+    
+    <div id="map"></div>
+    
+    <button class="mobile-toggle" id="mobileToggle" onclick="togglePanel()">☰</button>
+    
+    <div class="right-panel" id="rightPanel">
+        <h1 class="map-title">Eurotrip do Marião</h1>
+        <div class="map-subtitle">4-15 de Agosto, 2025</div>
+        
+        <div class="extra-info">
+            <span class="extra-item">6 Cidades · 3 Países · 121 Memórias</span>
+            <span class="extra-item">🍺 15 marcas de cervejas diferentes</span>
+            <span class="extra-item">🍹 3 tipos de Spritz</span>
+        </div>
+        
+        <div class="countries-section">
+            <div class="country-block">
+                <div class="country-name">🇬🇧 Reino Unido</div>
+                <ul class="city-list">
+                    <li><a class="city-link" data-city="London">
+                        <span>Londres</span>
+                        <span class="city-count">51</span>
+                    </a></li>
+                    <li><a class="city-link" data-city="Edinburgh">
+                        <span>Edimburgo</span>
+                        <span class="city-count">13</span>
+                    </a></li>
+                </ul>
+            </div>
+            
+            <div class="country-block">
+                <div class="country-name">🇮🇹 Itália</div>
+                <ul class="city-list">
+                    <li><a class="city-link" data-city="Rome">
+                        <span>Roma</span>
+                        <span class="city-count">16</span>
+                    </a></li>
+                    <li><a class="city-link" data-city="Florence">
+                        <span>Florença</span>
+                        <span class="city-count">29</span>
+                    </a></li>
+                    <li><a class="city-link" data-city="Venice">
+                        <span>Veneza</span>
+                        <span class="city-count">8</span>
+                    </a></li>
+                </ul>
+            </div>
+            
+            <div class="country-block">
+                <div class="country-name">🇩🇪 Alemanha</div>
+                <ul class="city-list">
+                    <li><a class="city-link" data-city="Frankfurt">
+                        <span>Frankfurt</span>
+                        <span class="city-count">4</span>
+                    </a></li>
+                </ul>
+            </div>
+        </div>
+    </div>
+    
+    <div class="lightbox" id="lightbox">
+        <div class="lightbox-close" onclick="closeLightbox()">×</div>
+        <div class="lightbox-content">
+            <div class="lightbox-swiper swiper">
+                <div class="swiper-wrapper" id="lightbox-wrapper"></div>
+                <div class="swiper-button-next"></div>
+                <div class="swiper-button-prev"></div>
+                <div class="swiper-pagination"></div>
+            </div>
+        </div>
+    </div>
+    
+    <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"
+            integrity="sha256-20nQCchB9co0qIjJZRGuk2/Z9VM+kNiyxNV1lvTlZBo="
+            crossorigin=""></script>
+    <script src="https://unpkg.com/swiper@11/swiper-bundle.min.js"></script>
+    
+    <script>
+        const photoData = [{"filename": "IMG_3986.jpeg", "lat": 51.50108055555555, "lon": -0.1251888888888889, "timestamp": "2025:08:04 12:29:44", "url": "https://raw.githubusercontent.com/chat-zem/eurotrip-photos/main/IMG_3986.jpeg"}, {"filename": "IMG_3987.jpeg", "lat": 51.501075, "lon": -0.12524722222222223, "timestamp": "2025:08:04 12:29:53", "url": "https://raw.githubusercontent.com/chat-zem/eurotrip-photos/main/IMG_3987.jpeg"}, {"filename": "IMG_3990.jpeg", "lat": 51.501086111111114, "lon": -0.12520833333333334, "timestamp": "2025:08:04 12:30:36", "url": "https://raw.githubusercontent.com/chat-zem/eurotrip-photos/main/IMG_3990.jpeg"}, {"filename": "IMG_3992.jpeg", "lat": 51.49669166666667, "lon": -0.108575, "timestamp": "2025:08:04 12:45:53", "url": "https://raw.githubusercontent.com/chat-zem/eurotrip-photos/main/IMG_3992.jpeg"}, {"filename": "IMG_3997.jpeg", "lat": 51.49591388888889, "lon": -0.10865277777777778, "timestamp": "2025:08:04 14:13:41", "url": "https://raw.githubusercontent.com/chat-zem/eurotrip-photos/main/IMG_3997.jpeg"}, {"filename": "IMG_4001.jpeg", "lat": 51.49594166666667, "lon": -0.10860833333333333, "timestamp": "2025:08:04 14:21:05", "url": "https://raw.githubusercontent.com/chat-zem/eurotrip-photos/main/IMG_4001.jpeg"}, {"filename": "IMG_4002.jpeg", "lat": 51.495894444444446, "lon": -0.10860833333333333, "timestamp": "2025:08:04 14:21:44", "url": "https://raw.githubusercontent.com/chat-zem/eurotrip-photos/main/IMG_4002.jpeg"}, {"filename": "IMG_4003.jpeg", "lat": 51.495894444444446, "lon": -0.10860555555555557, "timestamp": "2025:08:04 14:22:37", "url": "https://raw.githubusercontent.com/chat-zem/eurotrip-photos/main/IMG_4003.jpeg"}, {"filename": "IMG_4004.jpeg", "lat": 51.49588888888889, "lon": -0.10864722222222223, "timestamp": "2025:08:04 14:31:36", "url": "https://raw.githubusercontent.com/chat-zem/eurotrip-photos/main/IMG_4004.jpeg"}, {"filename": "IMG_4005.jpeg", "lat": 51.49588888888889, "lon": -0.10864722222222223, "timestamp": "2025:08:04 14:31:48", "url": "https://raw.githubusercontent.com/chat-zem/eurotrip-photos/main/IMG_4005.jpeg"}, {"filename": "IMG_4006.jpeg", "lat": 51.49591388888889, "lon": -0.10868888888888889, "timestamp": "2025:08:04 14:32:28", "url": "https://raw.githubusercontent.com/chat-zem/eurotrip-photos/main/IMG_4006.jpeg"}, {"filename": "IMG_4007.jpeg", "lat": 51.49591388888889, "lon": -0.10868888888888889, "timestamp": "2025:08:04 14:32:31", "url": "https://raw.githubusercontent.com/chat-zem/eurotrip-photos/main/IMG_4007.jpeg"}, {"filename": "IMG_4008.jpeg", "lat": 51.495875, "lon": -0.10853055555555556, "timestamp": "2025:08:04 14:46:30", "url": "https://raw.githubusercontent.com/chat-zem/eurotrip-photos/main/IMG_4008.jpeg"}, {"filename": "IMG_4009.jpeg", "lat": 51.495802777777776, "lon": -0.10823333333333333, "timestamp": "2025:08:04 14:52:44", "url": "https://raw.githubusercontent.com/chat-zem/eurotrip-photos/main/IMG_4009.jpeg"}, {"filename": "IMG_4010.jpeg", "lat": 51.4958, "lon": -0.10820277777777779, "timestamp": "2025:08:04 14:52:49", "url": "https://raw.githubusercontent.com/chat-zem/eurotrip-photos/main/IMG_4010.jpeg"}, {"filename": "IMG_4011.jpeg", "lat": 51.495694444444446, "lon": -0.10809166666666667, "timestamp": "2025:08:04 15:15:12", "url": "https://raw.githubusercontent.com/chat-zem/eurotrip-photos/main/IMG_4011.jpeg"}, {"filename": "IMG_4012.jpeg", "lat": 51.49533888888889, "lon": -0.10817222222222223, "timestamp": "2025:08:04 15:26:44", "url": "https://raw.githubusercontent.com/chat-zem/eurotrip-photos/main/IMG_4012.jpeg"}, {"filename": "IMG_4013.jpeg", "lat": 51.495491666666666, "lon": -0.1085888888888889, "timestamp": "2025:08:04 15:31:04", "url": "https://raw.githubusercontent.com/chat-zem/eurotrip-photos/main/IMG_4013.jpeg"}, {"filename": "IMG_4018.jpeg", "lat": 51.51323055555556, "lon": -0.14021111111111112, "timestamp": "2025:08:04 18:04:47", "url": "https://raw.githubusercontent.com/chat-zem/eurotrip-photos/main/IMG_4018.jpeg"}, {"filename": "IMG_4020.jpeg", "lat": 51.51327777777778, "lon": -0.13992222222222223, "timestamp": "2025:08:04 18:07:01", "url": "https://raw.githubusercontent.com/chat-zem/eurotrip-photos/main/IMG_4020.jpeg"}, {"filename": "IMG_4023.jpeg", "lat": 51.51133611111111, "lon": -0.1302111111111111, "timestamp": "2025:08:04 19:12:17", "url": "https://raw.githubusercontent.com/chat-zem/eurotrip-photos/main/IMG_4023.jpeg"}, {"filename": "IMG_4032.jpeg", "lat": 51.596294444444446, "lon": -0.2378361111111111, "timestamp": "2025:08:05 11:43:30", "url": "https://raw.githubusercontent.com/chat-zem/eurotrip-photos/main/IMG_4032.jpeg"}, {"filename": "IMG_4033.jpeg", "lat": 51.59628611111111, "lon": -0.23780555555555555, "timestamp": "2025:08:05 11:43:34", "url": "https://raw.githubusercontent.com/chat-zem/eurotrip-photos/main/IMG_4033.jpeg"}, {"filename": "IMG_4034.jpeg", "lat": 51.596272222222225, "lon": -0.23775277777777779, "timestamp": "2025:08:05 11:43:37", "url": "https://raw.githubusercontent.com/chat-zem/eurotrip-photos/main/IMG_4034.jpeg"}, {"filename": "IMG_4035.jpeg", "lat": 51.597625, "lon": -0.23754166666666668, "timestamp": "2025:08:05 11:55:58", "url": "https://raw.githubusercontent.com/chat-zem/eurotrip-photos/main/IMG_4035.jpeg"}, {"filename": "IMG_4036.jpeg", "lat": 51.59752777777778, "lon": -0.23760833333333334, "timestamp": "2025:08:05 11:58:46", "url": "https://raw.githubusercontent.com/chat-zem/eurotrip-photos/main/IMG_4036.jpeg"}, {"filename": "IMG_4037.jpeg", "lat": 51.59756388888889, "lon": -0.23750833333333335, "timestamp": "2025:08:05 11:58:52", "url": "https://raw.githubusercontent.com/chat-zem/eurotrip-photos/main/IMG_4037.jpeg"}, {"filename": "IMG_4038.jpeg", "lat": 51.59755833333334, "lon": -0.23753611111111111, "timestamp": "2025:08:05 11:58:59", "url": "https://raw.githubusercontent.com/chat-zem/eurotrip-photos/main/IMG_4038.jpeg"}, {"filename": "IMG_4039.jpeg", "lat": 51.59753888888889, "lon": -0.23753888888888888, "timestamp": "2025:08:05 11:59:09", "url": "https://raw.githubusercontent.com/chat-zem/eurotrip-photos/main/IMG_4039.jpeg"}, {"filename": "IMG_4040.jpeg", "lat": 51.597572222222226, "lon": -0.23747222222222222, "timestamp": "2025:08:05 12:18:00", "url": "https://raw.githubusercontent.com/chat-zem/eurotrip-photos/main/IMG_4040.jpeg"}, {"filename": "IMG_4041.jpeg", "lat": 51.59762222222223, "lon": -0.2373111111111111, "timestamp": "2025:08:05 12:18:45", "url": "https://raw.githubusercontent.com/chat-zem/eurotrip-photos/main/IMG_4041.jpeg"}, {"filename": "IMG_4042.jpeg", "lat": 51.597636111111115, "lon": -0.23730833333333334, "timestamp": "2025:08:05 12:18:48", "url": "https://raw.githubusercontent.com/chat-zem/eurotrip-photos/main/IMG_4042.jpeg"}, {"filename": "IMG_4043.jpeg", "lat": 51.59770277777778, "lon": -0.23731666666666668, "timestamp": "2025:08:05 12:18:58", "url": "https://raw.githubusercontent.com/chat-zem/eurotrip-photos/main/IMG_4043.jpeg"}, {"filename": "IMG_4045.jpeg", "lat": 51.59861388888889, "lon": -0.2386, "timestamp": "2025:08:05 12:47:12", "url": "https://raw.githubusercontent.com/chat-zem/eurotrip-photos/main/IMG_4045.jpeg"}, {"filename": "IMG_4046.jpeg", "lat": 51.59880833333334, "lon": -0.23841944444444446, "timestamp": "2025:08:05 13:29:05", "url": "https://raw.githubusercontent.com/chat-zem/eurotrip-photos/main/IMG_4046.jpeg"}, {"filename": "IMG_4047.jpeg", "lat": 51.598733333333335, "lon": -0.23820555555555556, "timestamp": "2025:08:05 13:42:53", "url": "https://raw.githubusercontent.com/chat-zem/eurotrip-photos/main/IMG_4047.jpeg"}, {"filename": "IMG_4048.jpeg", "lat": 51.59869722222223, "lon": -0.23818333333333333, "timestamp": "2025:08:05 13:48:34", "url": "https://raw.githubusercontent.com/chat-zem/eurotrip-photos/main/IMG_4048.jpeg"}, {"filename": "IMG_4067.jpeg", "lat": 51.50640555555555, "lon": -0.08027777777777778, "timestamp": "2025:08:06 13:07:23", "url": "https://raw.githubusercontent.com/chat-zem/eurotrip-photos/main/IMG_4067.jpeg"}, {"filename": "IMG_4068.jpeg", "lat": 51.50641666666667, "lon": -0.080275, "timestamp": "2025:08:06 13:07:25", "url": "https://raw.githubusercontent.com/chat-zem/eurotrip-photos/main/IMG_4068.jpeg"}, {"filename": "IMG_4069.jpeg", "lat": 51.50674166666667, "lon": -0.08235833333333334, "timestamp": "2025:08:06 13:20:17", "url": "https://raw.githubusercontent.com/chat-zem/eurotrip-photos/main/IMG_4069.jpeg"}, {"filename": "IMG_4070.jpeg", "lat": 51.50674444444444, "lon": -0.08236666666666667, "timestamp": "2025:08:06 13:20:36", "url": "https://raw.githubusercontent.com/chat-zem/eurotrip-photos/main/IMG_4070.jpeg"}, {"filename": "IMG_4072.jpeg", "lat": 51.50610277777778, "lon": -0.08045555555555556, "timestamp": "2025:08:06 15:34:45", "url": "https://raw.githubusercontent.com/chat-zem/eurotrip-photos/main/IMG_4072.jpeg"}, {"filename": "IMG_4080.jpeg", "lat": 51.505947222222225, "lon": -0.12030555555555555, "timestamp": "2025:08:06 23:57:50", "url": "https://raw.githubusercontent.com/chat-zem/eurotrip-photos/main/IMG_4080.jpeg"}, {"filename": "IMG_4082.jpeg", "lat": 51.506661111111114, "lon": -0.12258888888888889, "timestamp": "2025:08:07 00:00:29", "url": "https://raw.githubusercontent.com/chat-zem/eurotrip-photos/main/IMG_4082.jpeg"}, {"filename": "IMG_4110.jpeg", "lat": 55.94966944444444, "lon": -3.1910999999999996, "timestamp": "2025:08:07 17:55:48", "url": "https://raw.githubusercontent.com/chat-zem/eurotrip-photos/main/IMG_4110.jpeg"}, {"filename": "IMG_4112.jpeg", "lat": 55.9525, "lon": -3.193308333333333, "timestamp": "2025:08:07 18:15:25", "url": "https://raw.githubusercontent.com/chat-zem/eurotrip-photos/main/IMG_4112.jpeg"}, {"filename": "IMG_4114.jpeg", "lat": 55.953925000000005, "lon": -3.1929916666666665, "timestamp": "2025:08:07 18:48:53", "url": "https://raw.githubusercontent.com/chat-zem/eurotrip-photos/main/IMG_4114.jpeg"}, {"filename": "IMG_4115.jpeg", "lat": 55.95456666666667, "lon": -3.1845499999999998, "timestamp": "2025:08:07 19:46:07", "url": "https://raw.githubusercontent.com/chat-zem/eurotrip-photos/main/IMG_4115.jpeg"}, {"filename": "IMG_4116.jpeg", "lat": 55.954569444444445, "lon": -3.1845277777777774, "timestamp": "2025:08:07 19:46:25", "url": "https://raw.githubusercontent.com/chat-zem/eurotrip-photos/main/IMG_4116.jpeg"}, {"filename": "IMG_4117.jpeg", "lat": 55.95456666666667, "lon": -3.184525, "timestamp": "2025:08:07 19:46:28", "url": "https://raw.githubusercontent.com/chat-zem/eurotrip-photos/main/IMG_4117.jpeg"}, {"filename": "IMG_4119.jpeg", "lat": 55.954569444444445, "lon": -3.1845305555555554, "timestamp": "2025:08:07 19:46:37", "url": "https://raw.githubusercontent.com/chat-zem/eurotrip-photos/main/IMG_4119.jpeg"}, {"filename": "IMG_4121.jpeg", "lat": 55.95455277777778, "lon": -3.1845638888888885, "timestamp": "2025:08:07 19:48:50", "url": "https://raw.githubusercontent.com/chat-zem/eurotrip-photos/main/IMG_4121.jpeg"}, {"filename": "IMG_4123.jpeg", "lat": 55.96169722222223, "lon": -3.1767555555555553, "timestamp": "2025:08:07 20:30:07", "url": "https://raw.githubusercontent.com/chat-zem/eurotrip-photos/main/IMG_4123.jpeg"}, {"filename": "IMG_4131.jpeg", "lat": 55.961688888888894, "lon": -3.1767805555555553, "timestamp": "2025:08:08 08:50:51", "url": "https://raw.githubusercontent.com/chat-zem/eurotrip-photos/main/IMG_4131.jpeg"}, {"filename": "IMG_4133.jpeg", "lat": 55.95635277777778, "lon": -3.186347222222222, "timestamp": "2025:08:08 09:46:29", "url": "https://raw.githubusercontent.com/chat-zem/eurotrip-photos/main/IMG_4133.jpeg"}, {"filename": "IMG_4135.jpeg", "lat": 55.94697222222222, "lon": -3.1898388888888887, "timestamp": "2025:08:08 10:48:44", "url": "https://raw.githubusercontent.com/chat-zem/eurotrip-photos/main/IMG_4135.jpeg"}, {"filename": "IMG_4136.jpeg", "lat": 55.94696388888889, "lon": -3.1898305555555555, "timestamp": "2025:08:08 10:48:49", "url": "https://raw.githubusercontent.com/chat-zem/eurotrip-photos/main/IMG_4136.jpeg"}, {"filename": "IMG_4204.jpeg", "lat": 41.89001111111111, "lon": 12.49274722222222, "timestamp": "2025:08:10 16:07:33", "url": "https://raw.githubusercontent.com/chat-zem/eurotrip-photos/main/IMG_4204.jpeg"}, {"filename": "IMG_4205.jpeg", "lat": 41.89000277777778, "lon": 12.492755555555554, "timestamp": "2025:08:10 16:07:40", "url": "https://raw.githubusercontent.com/chat-zem/eurotrip-photos/main/IMG_4205.jpeg"}, {"filename": "IMG_4208.jpeg", "lat": 41.89069444444444, "lon": 12.491975, "timestamp": "2025:08:10 16:37:29", "url": "https://raw.githubusercontent.com/chat-zem/eurotrip-photos/main/IMG_4208.jpeg"}, {"filename": "IMG_4209.jpeg", "lat": 41.890705555555556, "lon": 12.491966666666666, "timestamp": "2025:08:10 16:37:53", "url": "https://raw.githubusercontent.com/chat-zem/eurotrip-photos/main/IMG_4209.jpeg"}, {"filename": "IMG_4211.jpeg", "lat": 41.89035833333333, "lon": 12.491874999999999, "timestamp": "2025:08:10 16:57:14", "url": "https://raw.githubusercontent.com/chat-zem/eurotrip-photos/main/IMG_4211.jpeg"}, {"filename": "IMG_4213.jpeg", "lat": 41.89131666666667, "lon": 12.490158333333332, "timestamp": "2025:08:10 17:13:46", "url": "https://raw.githubusercontent.com/chat-zem/eurotrip-photos/main/IMG_4213.jpeg"}, {"filename": "IMG_4217.jpeg", "lat": 41.8955, "lon": 12.478852777777778, "timestamp": "2025:08:10 19:14:55", "url": "https://raw.githubusercontent.com/chat-zem/eurotrip-photos/main/IMG_4217.jpeg"}, {"filename": "IMG_4218.jpeg", "lat": 41.89588888888889, "lon": 12.477822222222223, "timestamp": "2025:08:10 20:08:25", "url": "https://raw.githubusercontent.com/chat-zem/eurotrip-photos/main/IMG_4218.jpeg"}, {"filename": "IMG_4225.jpeg", "lat": 41.88963611111111, "lon": 12.471719444444444, "timestamp": "2025:08:11 12:59:26", "url": "https://raw.githubusercontent.com/chat-zem/eurotrip-photos/main/IMG_4225.jpeg"}, {"filename": "IMG_4226.jpeg", "lat": 41.88984166666667, "lon": 12.469616666666667, "timestamp": "2025:08:11 13:21:24", "url": "https://raw.githubusercontent.com/chat-zem/eurotrip-photos/main/IMG_4226.jpeg"}, {"filename": "IMG_4240.jpeg", "lat": 41.902388888888886, "lon": 12.464183333333333, "timestamp": "2025:08:11 17:04:07", "url": "https://raw.githubusercontent.com/chat-zem/eurotrip-photos/main/IMG_4240.jpeg"}, {"filename": "IMG_4241.jpeg", "lat": 41.902388888888886, "lon": 12.464186111111111, "timestamp": "2025:08:11 17:04:10", "url": "https://raw.githubusercontent.com/chat-zem/eurotrip-photos/main/IMG_4241.jpeg"}, {"filename": "IMG_4246.jpeg", "lat": 41.91064166666666, "lon": 12.47658888888889, "timestamp": "2025:08:11 18:47:22", "url": "https://raw.githubusercontent.com/chat-zem/eurotrip-photos/main/IMG_4246.jpeg"}, {"filename": "IMG_4261.jpeg", "lat": 41.891952777777774, "lon": 12.480180555555556, "timestamp": "2025:08:12 01:48:11", "url": "https://raw.githubusercontent.com/chat-zem/eurotrip-photos/main/IMG_4261.jpeg"}, {"filename": "IMG_4266.jpeg", "lat": 41.89539722222222, "lon": 12.482527777777777, "timestamp": "2025:08:12 01:53:58", "url": "https://raw.githubusercontent.com/chat-zem/eurotrip-photos/main/IMG_4266.jpeg"}, {"filename": "IMG_4288.jpeg", "lat": 43.77318611111111, "lon": 11.249580555555555, "timestamp": "2025:08:12 17:19:36", "url": "https://raw.githubusercontent.com/chat-zem/eurotrip-photos/main/IMG_4288.jpeg"}, {"filename": "IMG_4296.jpeg", "lat": 43.77393055555555, "lon": 11.249622222222222, "timestamp": "2025:08:12 17:32:16", "url": "https://raw.githubusercontent.com/chat-zem/eurotrip-photos/main/IMG_4296.jpeg"}, {"filename": "IMG_4305.jpeg", "lat": 43.77391111111111, "lon": 11.249613888888888, "timestamp": "2025:08:12 17:36:25", "url": "https://raw.githubusercontent.com/chat-zem/eurotrip-photos/main/IMG_4305.jpeg"}, {"filename": "IMG_4313.jpeg", "lat": 43.77354166666667, "lon": 11.249752777777777, "timestamp": "2025:08:12 18:35:00", "url": "https://raw.githubusercontent.com/chat-zem/eurotrip-photos/main/IMG_4313.jpeg"}, {"filename": "IMG_4324.jpeg", "lat": 43.77358888888889, "lon": 11.249744444444444, "timestamp": "2025:08:12 18:40:29", "url": "https://raw.githubusercontent.com/chat-zem/eurotrip-photos/main/IMG_4324.jpeg"}, {"filename": "IMG_4329.jpeg", "lat": 43.77297222222222, "lon": 11.255002777777777, "timestamp": "2025:08:12 18:57:51", "url": "https://raw.githubusercontent.com/chat-zem/eurotrip-photos/main/IMG_4329.jpeg"}, {"filename": "IMG_4331.jpeg", "lat": 43.77295, "lon": 11.255027777777778, "timestamp": "2025:08:12 18:58:00", "url": "https://raw.githubusercontent.com/chat-zem/eurotrip-photos/main/IMG_4331.jpeg"}, {"filename": "IMG_4333.jpeg", "lat": 43.77339166666667, "lon": 11.25516111111111, "timestamp": "2025:08:12 19:02:48", "url": "https://raw.githubusercontent.com/chat-zem/eurotrip-photos/main/IMG_4333.jpeg"}, {"filename": "IMG_4334.jpeg", "lat": 43.773555555555554, "lon": 11.255275, "timestamp": "2025:08:12 19:04:02", "url": "https://raw.githubusercontent.com/chat-zem/eurotrip-photos/main/IMG_4334.jpeg"}, {"filename": "IMG_4336.jpeg", "lat": 43.77613888888889, "lon": 11.260183333333334, "timestamp": "2025:08:12 19:20:03", "url": "https://raw.githubusercontent.com/chat-zem/eurotrip-photos/main/IMG_4336.jpeg"}, {"filename": "IMG_4341.jpeg", "lat": 43.769475, "lon": 11.255658333333333, "timestamp": "2025:08:12 19:40:52", "url": "https://raw.githubusercontent.com/chat-zem/eurotrip-photos/main/IMG_4341.jpeg"}, {"filename": "IMG_4342.jpeg", "lat": 43.76945833333333, "lon": 11.25573611111111, "timestamp": "2025:08:12 19:41:05", "url": "https://raw.githubusercontent.com/chat-zem/eurotrip-photos/main/IMG_4342.jpeg"}, {"filename": "IMG_4343.jpeg", "lat": 43.768477777777775, "lon": 11.253541666666667, "timestamp": "2025:08:12 19:47:08", "url": "https://raw.githubusercontent.com/chat-zem/eurotrip-photos/main/IMG_4343.jpeg"}, {"filename": "IMG_4348.jpeg", "lat": 43.77497777777778, "lon": 11.252816666666666, "timestamp": "2025:08:12 22:56:11", "url": "https://raw.githubusercontent.com/chat-zem/eurotrip-photos/main/IMG_4348.jpeg"}, {"filename": "IMG_4354.jpeg", "lat": 43.77151111111111, "lon": 11.254308333333332, "timestamp": "2025:08:13 14:38:47", "url": "https://raw.githubusercontent.com/chat-zem/eurotrip-photos/main/IMG_4354.jpeg"}, {"filename": "IMG_4355.jpeg", "lat": 43.763041666666666, "lon": 11.253747222222222, "timestamp": "2025:08:13 15:15:08", "url": "https://raw.githubusercontent.com/chat-zem/eurotrip-photos/main/IMG_4355.jpeg"}, {"filename": "IMG_4357.jpeg", "lat": 43.763019444444446, "lon": 11.253730555555556, "timestamp": "2025:08:13 15:15:50", "url": "https://raw.githubusercontent.com/chat-zem/eurotrip-photos/main/IMG_4357.jpeg"}, {"filename": "IMG_4361.jpeg", "lat": 43.762766666666664, "lon": 11.253861111111112, "timestamp": "2025:08:13 15:39:33", "url": "https://raw.githubusercontent.com/chat-zem/eurotrip-photos/main/IMG_4361.jpeg"}, {"filename": "IMG_4363.jpeg", "lat": 43.76728055555555, "lon": 11.254188888888889, "timestamp": "2025:08:13 16:39:59", "url": "https://raw.githubusercontent.com/chat-zem/eurotrip-photos/main/IMG_4363.jpeg"}, {"filename": "IMG_4364.jpeg", "lat": 43.77263611111111, "lon": 11.256913888888889, "timestamp": "2025:08:13 17:34:07", "url": "https://raw.githubusercontent.com/chat-zem/eurotrip-photos/main/IMG_4364.jpeg"}, {"filename": "IMG_4367.jpeg", "lat": 43.77323055555556, "lon": 11.263716666666667, "timestamp": "2025:08:13 19:27:54", "url": "https://raw.githubusercontent.com/chat-zem/eurotrip-photos/main/IMG_4367.jpeg"}, {"filename": "IMG_4369.jpeg", "lat": 43.76923055555555, "lon": 11.261205555555556, "timestamp": "2025:08:13 19:34:29", "url": "https://raw.githubusercontent.com/chat-zem/eurotrip-photos/main/IMG_4369.jpeg"}, {"filename": "IMG_4370.jpeg", "lat": 43.76920833333333, "lon": 11.261180555555555, "timestamp": "2025:08:13 19:41:54", "url": "https://raw.githubusercontent.com/chat-zem/eurotrip-photos/main/IMG_4370.jpeg"}, {"filename": "IMG_4376.jpeg", "lat": 43.76265277777778, "lon": 11.263925, "timestamp": "2025:08:13 22:36:38", "url": "https://raw.githubusercontent.com/chat-zem/eurotrip-photos/main/IMG_4376.jpeg"}, {"filename": "IMG_4389.jpeg", "lat": 45.44096666666666, "lon": 12.321630555555556, "timestamp": "2025:08:14 15:14:27", "url": "https://raw.githubusercontent.com/chat-zem/eurotrip-photos/main/IMG_4389.jpeg"}, {"filename": "IMG_4390.jpeg", "lat": 45.44362222222222, "lon": 12.330122222222222, "timestamp": "2025:08:14 16:17:30", "url": "https://raw.githubusercontent.com/chat-zem/eurotrip-photos/main/IMG_4390.jpeg"}, {"filename": "IMG_4391.jpeg", "lat": 45.43335277777778, "lon": 12.34006388888889, "timestamp": "2025:08:14 18:07:48", "url": "https://raw.githubusercontent.com/chat-zem/eurotrip-photos/main/IMG_4391.jpeg"}, {"filename": "IMG_4398.jpeg", "lat": 45.43405833333333, "lon": 12.344452777777779, "timestamp": "2025:08:14 18:43:59", "url": "https://raw.githubusercontent.com/chat-zem/eurotrip-photos/main/IMG_4398.jpeg"}, {"filename": "IMG_4400.jpeg", "lat": 45.434574999999995, "lon": 12.350277777777777, "timestamp": "2025:08:14 18:57:16", "url": "https://raw.githubusercontent.com/chat-zem/eurotrip-photos/main/IMG_4400.jpeg"}, {"filename": "IMG_4402.jpeg", "lat": 45.43725833333333, "lon": 12.343294444444446, "timestamp": "2025:08:14 19:11:28", "url": "https://raw.githubusercontent.com/chat-zem/eurotrip-photos/main/IMG_4402.jpeg"}, {"filename": "IMG_4403.jpeg", "lat": 45.43801944444444, "lon": 12.335897222222222, "timestamp": "2025:08:14 19:25:36", "url": "https://raw.githubusercontent.com/chat-zem/eurotrip-photos/main/IMG_4403.jpeg"}, {"filename": "IMG_4404.jpeg", "lat": 45.44127222222222, "lon": 12.326241666666666, "timestamp": "2025:08:14 19:44:55", "url": "https://raw.githubusercontent.com/chat-zem/eurotrip-photos/main/IMG_4404.jpeg"}, {"filename": "IMG_4425.jpeg", "lat": 50.04650833333333, "lon": 8.572219444444444, "timestamp": "2025:08:15 21:26:57", "url": "https://raw.githubusercontent.com/chat-zem/eurotrip-photos/main/IMG_4425.jpeg"}, {"filename": "IMG_4426.jpeg", "lat": 50.046527777777776, "lon": 8.57195, "timestamp": "2025:08:15 21:26:58", "url": "https://raw.githubusercontent.com/chat-zem/eurotrip-photos/main/IMG_4426.jpeg"}, {"filename": "IMG_4427.jpeg", "lat": 50.04651944444444, "lon": 8.571916666666667, "timestamp": "2025:08:15 21:27:01", "url": "https://raw.githubusercontent.com/chat-zem/eurotrip-photos/main/IMG_4427.jpeg"}, {"filename": "IMG_4428.jpeg", "lat": 50.04651666666666, "lon": 8.571883333333334, "timestamp": "2025:08:15 21:27:02", "url": "https://raw.githubusercontent.com/chat-zem/eurotrip-photos/main/IMG_4428.jpeg"}, {"filename": "10C87F86-8805-4E8B-9C84-9EA33AEA7D13.jpg", "lat": 51.4958, "lon": -0.1086, "timestamp": null, "url": "https://raw.githubusercontent.com/chat-zem/eurotrip-photos/main/10C87F86-8805-4E8B-9C84-9EA33AEA7D13.jpg"}, {"filename": "72C2FAC0-87AA-4890-A401-6E9355AA1EB5.jpg", "lat": 51.4958, "lon": -0.1086, "timestamp": null, "url": "https://raw.githubusercontent.com/chat-zem/eurotrip-photos/main/72C2FAC0-87AA-4890-A401-6E9355AA1EB5.jpg"}, {"filename": "97CFE520-18C9-42ED-B019-F363CF1BA77E.jpg", "lat": 51.4958, "lon": -0.1086, "timestamp": null, "url": "https://raw.githubusercontent.com/chat-zem/eurotrip-photos/main/97CFE520-18C9-42ED-B019-F363CF1BA77E.jpg"}, {"filename": "359120D4-CD7A-462C-8D59-3E058CA5420E.jpg", "lat": 51.4958, "lon": -0.1086, "timestamp": null, "url": "https://raw.githubusercontent.com/chat-zem/eurotrip-photos/main/359120D4-CD7A-462C-8D59-3E058CA5420E.jpg"}, {"filename": "70639349-9A74-4D74-AF1E-4612413319D4.jpg", "lat": 51.4958, "lon": -0.1086, "timestamp": null, "url": "https://raw.githubusercontent.com/chat-zem/eurotrip-photos/main/70639349-9A74-4D74-AF1E-4612413319D4.jpg"}, {"filename": "0297222E-D4EA-49F2-972F-A196D9DA444D.jpg", "lat": 51.4958, "lon": -0.1086, "timestamp": null, "url": "https://raw.githubusercontent.com/chat-zem/eurotrip-photos/main/0297222E-D4EA-49F2-972F-A196D9DA444D.jpg"}, {"filename": "florence-italy.gif", "lat": 43.7696, "lon": 11.2558, "timestamp": null, "url": "https://raw.githubusercontent.com/chat-zem/eurotrip-photos/main/florence-italy.gif"}, {"filename": "florence-italy1.gif", "lat": 43.7696, "lon": 11.2558, "timestamp": null, "url": "https://raw.githubusercontent.com/chat-zem/eurotrip-photos/main/florence-italy1.gif"}, {"filename": "galeria-ufizi-florence-italy.gif", "lat": 43.7686, "lon": 11.2556, "timestamp": null, "url": "https://raw.githubusercontent.com/chat-zem/eurotrip-photos/main/galeria-ufizi-florence-italy.gif"}, {"filename": "piazza-santa-maria-novella-florence.gif", "lat": 43.7746, "lon": 11.249, "timestamp": null, "url": "https://raw.githubusercontent.com/chat-zem/eurotrip-photos/main/piazza-santa-maria-novella-florence.gif"}, {"filename": "piazza-santa-maria-novella-florence2.gif", "lat": 43.7746, "lon": 11.249, "timestamp": null, "url": "https://raw.githubusercontent.com/chat-zem/eurotrip-photos/main/piazza-santa-maria-novella-florence2.gif"}, {"filename": "Teatro-Marcello-rome.gif", "lat": 41.8915, "lon": 12.4794, "timestamp": null, "url": "https://raw.githubusercontent.com/chat-zem/eurotrip-photos/main/Teatro-Marcello-rome.gif"}, {"filename": "westminster-london.gif", "lat": 51.4995, "lon": -0.1248, "timestamp": null, "url": "https://raw.githubusercontent.com/chat-zem/eurotrip-photos/main/westminster-london.gif"}];
+        let popupSwipers = {};
+        let currentMap;
+        let photoGroups = [];
+        
+        function togglePanel() {
+            const panel = document.getElementById('rightPanel');
+            const toggle = document.getElementById('mobileToggle');
+            panel.classList.toggle('active');
+            toggle.classList.toggle('active');
+            
+            if (panel.classList.contains('active')) {
+                toggle.innerHTML = '✕';
+            } else {
+                toggle.innerHTML = '☰';
+            }
+        }
+        
+        window.openLightbox = function(groupIndex, photoIndex) {
+            const group = photoGroups[groupIndex];
+            const lightbox = document.getElementById('lightbox');
+            const wrapper = document.getElementById('lightbox-wrapper');
+            
+            wrapper.innerHTML = group.map(photo => 
+                '<div class="swiper-slide"><img src="' + photo.url + '" alt="Foto"></div>'
+            ).join('');
+            
+            lightbox.classList.add('active');
+            
+            new Swiper('.lightbox-swiper', {
+                initialSlide: photoIndex,
+                navigation: {
+                    nextEl: '.lightbox .swiper-button-next',
+                    prevEl: '.lightbox .swiper-button-prev',
+                },
+                pagination: {
+                    el: '.lightbox .swiper-pagination',
+                    clickable: true,
+                    dynamicBullets: true
+                },
+                keyboard: { enabled: true },
+                loop: group.length > 1,
+                grabCursor: true
+            });
+        };
+        
+        window.closeLightbox = function() {
+            document.getElementById('lightbox').classList.remove('active');
+        };
+        
+        window.addEventListener('load', function() {
+            if (typeof L === 'undefined') {
+                document.getElementById('loading').innerHTML = 'Erro ao carregar o mapa. Por favor, recarregue a página.';
+                return;
+            }
+            
+            document.getElementById('loading').style.display = 'none';
+            
+            const cityCoords = {
+                'London': [51.5074, -0.1278],
+                'Edinburgh': [55.9533, -3.1883],
+                'Rome': [41.9028, 12.4964],
+                'Florence': [43.7696, 11.2558],
+                'Venice': [45.4408, 12.3155],
+                'Frankfurt': [50.0465, 8.5720]
+            };
+            
+            currentMap = L.map('map');
+            
+            L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+                attribution: '© OpenStreetMap contributors',
+                maxZoom: 19
+            }).addTo(currentMap);
+            
+            document.querySelectorAll('.city-link').forEach(link => {
+                link.addEventListener('click', function(e) {
+                    e.preventDefault();
+                    const city = this.dataset.city;
+                    if (cityCoords[city]) {
+                        currentMap.setView(cityCoords[city], 13, { animate: true, duration: 1.5 });
+                        
+                        if (window.innerWidth <= 768) {
+                            setTimeout(() => togglePanel(), 800);
+                        }
+                    }
+                });
+            });
+            
+            function groupPhotosByLocation(photos, threshold = 0.001) {
+                const groups = [];
+                const used = new Set();
+                
+                photos.forEach((photo, i) => {
+                    if (used.has(i)) return;
+                    
+                    const group = [photo];
+                    used.add(i);
+                    
+                    photos.forEach((other, j) => {
+                        if (i !== j && !used.has(j)) {
+                            const distance = Math.sqrt(
+                                Math.pow(photo.lat - other.lat, 2) + 
+                                Math.pow(photo.lon - other.lon, 2)
+                            );
+                            
+                            if (distance < threshold) {
+                                group.push(other);
+                                used.add(j);
+                            }
+                        }
+                    });
+                    
+                    groups.push(group);
+                });
+                
+                return groups;
+            }
+            
+            function isGif(filename) {
+                return filename.toLowerCase().endsWith('.gif');
+            }
+            
+            function createCustomIcon(count) {
+                if (count > 1) {
+                    return L.divIcon({
+                        className: 'multi-photo-marker',
+                        html: count,
+                        iconSize: [45, 45],
+                        iconAnchor: [22, 22],
+                        popupAnchor: [0, -22]
+                    });
+                } else {
+                    return L.divIcon({
+                        className: 'custom-marker',
+                        iconSize: [32, 32],
+                        iconAnchor: [16, 32],
+                        popupAnchor: [0, -32]
+                    });
+                }
+            }
+            
+            document.addEventListener('keydown', function(e) {
+                if (e.key === 'Escape') closeLightbox();
+            });
+            
+            photoGroups = groupPhotosByLocation(photoData);
+            
+            photoGroups.forEach((group, groupIndex) => {
+                const centerLat = group.reduce((sum, p) => sum + p.lat, 0) / group.length;
+                const centerLon = group.reduce((sum, p) => sum + p.lon, 0) / group.length;
+                const swiperId = 'swiper-' + groupIndex;
+                
+                let popupContent = '<div class="photo-popup">';
+                
+                if (group.length > 1) {
+                    const gifCount = group.filter(p => isGif(p.filename)).length;
+                    const photoCount = group.length - gifCount;
+                    let countText = group.length + ' itens';
+                    if (gifCount > 0 && photoCount > 0) {
+                        countText = photoCount + ' foto' + (photoCount !== 1 ? 's' : '') + ' · ' + gifCount + ' GIF' + (gifCount !== 1 ? 's' : '');
+                    } else if (gifCount > 0) {
+                        countText = gifCount + ' GIF' + (gifCount !== 1 ? 's' : '');
+                    } else {
+                        countText = photoCount + ' foto' + (photoCount !== 1 ? 's' : '');
+                    }
+                    popupContent += '<div class="location-name">' + countText + ' neste local</div>';
+                }
+                
+                popupContent += '<div class="photo-gallery"><div class="swiper ' + swiperId + '"><div class="swiper-wrapper">';
+                
+                group.forEach((photo, idx) => {
+                    popupContent += '<div class="swiper-slide" onclick="openLightbox(' + groupIndex + ',' + idx + ')">';
+                    popupContent += '<img src="' + photo.url + '" alt="Foto">';
+                    popupContent += '</div>';
+                });
+                
+                popupContent += '</div>';
+                
+                if (group.length > 1) {
+                    popupContent += '<div class="swiper-button-next"></div>';
+                    popupContent += '<div class="swiper-button-prev"></div>';
+                    popupContent += '<div class="swiper-pagination"></div>';
+                }
+                
+                popupContent += '</div></div></div>';
+                
+                const marker = L.marker([centerLat, centerLon], {
+                    icon: createCustomIcon(group.length)
+                }).addTo(currentMap);
+                
+                const popup = L.popup({ maxWidth: 500 }).setContent(popupContent);
+                marker.bindPopup(popup);
+                
+                marker.on('popupopen', function() {
+                    if (group.length > 1) {
+                        if (popupSwipers[swiperId]) {
+                            popupSwipers[swiperId].destroy(true, true);
+                        }
+                        
+                        setTimeout(() => {
+                            const swiperEl = document.querySelector('.' + swiperId);
+                            
+                            if (swiperEl) {
+                                swiperEl.addEventListener('mouseenter', () => {
+                                    currentMap.dragging.disable();
+                                });
+                                
+                                swiperEl.addEventListener('mouseleave', () => {
+                                    currentMap.dragging.enable();
+                                });
+                                
+                                popupSwipers[swiperId] = new Swiper('.' + swiperId, {
+                                    navigation: {
+                                        nextEl: '.' + swiperId + ' .swiper-button-next',
+                                        prevEl: '.' + swiperId + ' .swiper-button-prev',
+                                    },
+                                    pagination: {
+                                        el: '.' + swiperId + ' .swiper-pagination',
+                                        clickable: true
+                                    },
+                                    loop: true,
+                                    keyboard: { enabled: true },
+                                    allowTouchMove: true,
+                                    touchRatio: 1.5,
+                                    simulateTouch: true
+                                });
+                            }
+                        }, 150);
+                    }
+                });
+                
+                marker.on('popupclose', function() {
+                    if (popupSwipers[swiperId]) {
+                        popupSwipers[swiperId].destroy(true, true);
+                        delete popupSwipers[swiperId];
+                    }
+                    currentMap.dragging.enable();
+                });
+            });
+            
+            const bounds = L.latLngBounds(photoData.map(p => [p.lat, p.lon]));
+            currentMap.fitBounds(bounds, { padding: [50, 50] });
+        });
+    </script>
+</body>
+</html>
